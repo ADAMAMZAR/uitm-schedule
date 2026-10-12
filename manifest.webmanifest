@@ -1,0 +1,9 @@
+{
+  "name": "UiTM Sunday Studio",
+  "short_name": "UiTM Planner",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f2eadb",
+  "theme_color": "#12352f",
+  "description": "A Sunday timetable planner for UiTM students."
+}
