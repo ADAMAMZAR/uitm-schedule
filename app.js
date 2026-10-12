@@ -30,7 +30,9 @@ async function databaseSync(action) {
   if (!url) return;
   setSyncStatus(action === 'push' ? 'Backing up...' : 'Restoring...');
   try {
-    const response = await fetch(url, { method: 'POST', body: JSON.stringify(action === 'push' ? { action: 'push', data: snapshot() } : { action: 'pull' }) });
+    // Include the legacy deviceId/data shape too, so an older Planner backup deployment still works.
+    const request = { action, deviceId: deviceId(), data: snapshot() };
+    const response = await fetch(url, { method: 'POST', body: JSON.stringify(request) });
     if (!response.ok) throw new Error('The web app returned an error.');
     const remote = await response.json();
     if (!remote.ok) throw new Error(remote.error || 'The Sheet could not complete the request.');
