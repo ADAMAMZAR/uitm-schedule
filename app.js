@@ -21,6 +21,25 @@ function applySnapshot(data) {
   if (Array.isArray(data.completedCourses)) completedCourses.splice(0, completedCourses.length, ...data.completedCourses);
   localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); return true;
 }
+function openSheetPanel() {
+  $('#syncPanel').hidden = false; $('#sheetUrl').value = sheetUrl();
+  if (!sheetUrl()) setSyncStatus('Paste and save your Apps Script web-app URL.');
+}
+async function databaseSync(action) {
+  const url = sheetUrl(); openSheetPanel();
+  if (!url) return;
+  setSyncStatus(action === 'push' ? 'Backing up...' : 'Restoring...');
+  try {
+    const response = await fetch(url, { method: 'POST', body: JSON.stringify(action === 'push' ? { action: 'push', data: snapshot() } : { action: 'pull' }) });
+    if (!response.ok) throw new Error('The web app returned an error.');
+    const remote = await response.json();
+    if (!remote.ok) throw new Error(remote.error || 'The Sheet could not complete the request.');
+    if (action === 'pull') {
+      if (!remote.data || !remote.data.semesters || !remote.data.semesters.length) throw new Error('The Sheet is empty. Use Back up first.');
+      applySnapshot(remote.data); render(); setSyncStatus('Restored from Google Sheets.');
+    } else { applySnapshot(remote.data); render(); setSyncStatus('Backed up. You can now edit the Sheet tabs, then tap Restore.'); }
+  } catch (error) { setSyncStatus(`Could not ${action === 'push' ? 'back up' : 'restore'}: ${error.message}`); }
+}
 async function syncSheet() {
   const url = sheetUrl();
   $('#syncPanel').hidden = false; $('#sheetUrl').value = url;
@@ -137,6 +156,8 @@ $('#semesterPicker').onchange = (event) => { state.active = Number(event.target.
 $('#currentPart').onchange = (event) => { const part = Math.max(1, Math.min(11, Number(event.target.value) || 3)); localStorage.setItem('uitm-current-part', String(part)); persistProgress(); render(); };
 $('#courseStart').onchange = (event) => { const ends = { '08:30': '10:30', '10:30': '12:30', '14:30': '16:30', '16:30': '18:30' }; $('#courseEnd').value = ends[event.target.value]; };
 $('#newSemester').onclick = () => { const name = prompt('Name this future semester:', `Semester ${state.semesters.length + 1}`); if (name) { state.semesters.push({ id: crypto.randomUUID(), name, courses: DEFAULT_COURSES.map((course) => ({ ...course, id: crypto.randomUUID() })) }); state.active = state.semesters.length - 1; persist(); render(); } };
-$('#sheetSync').onclick = syncSheet;
-$('#saveSheetUrl').onclick = () => { const url = $('#sheetUrl').value.trim(); if (!/^https:\/\/script\.google\.com\//.test(url)) { setSyncStatus('Use the deployed Google Apps Script URL that starts with https://script.google.com/.'); return; } localStorage.setItem('uitm-sheet-url', url); setSyncStatus('Connection saved. Tap Sync Sheet again to back up.'); };
+$('#sheetSync').onclick = openSheetPanel;
+$('#sheetPush').onclick = () => databaseSync('push');
+$('#sheetPull').onclick = () => databaseSync('pull');
+$('#saveSheetUrl').onclick = () => { const url = $('#sheetUrl').value.trim(); if (!/^https:\/\/script\.google\.com\//.test(url)) { setSyncStatus('Use the deployed Google Apps Script URL that starts with https://script.google.com/.'); return; } localStorage.setItem('uitm-sheet-url', url); setSyncStatus('Connection saved. Back up to create or update your database.'); };
 render();

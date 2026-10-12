@@ -44,14 +44,14 @@
           <div class="meter"><i id="creditFill"></i></div>
         </div>
         <div class="semester-actions">
-          <button class="sync-button" id="sheetSync" type="button">Sync Sheet</button>
+          <button class="sync-button" id="sheetSync" type="button">Google Sheet</button>
           <button class="outline-button" id="newSemester">+ New semester</button>
         </div>
       </section>
 
       <section class="sync-panel" id="syncPanel" hidden aria-live="polite">
-        <div><p class="eyebrow">Google Sheets backup</p><strong id="syncStatus">Not connected</strong><p>Paste your Google Apps Script web-app URL to back up and restore this planner.</p></div>
-        <div class="sync-controls"><input id="sheetUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/.../exec" aria-label="Google Apps Script web app URL" /><button class="primary-button" id="saveSheetUrl" type="button">Save connection</button></div>
+        <div><p class="eyebrow">Google Sheets database</p><strong id="syncStatus">Not connected</strong><p>Back up sends all planner data to editable Sheet tabs. Restore loads the data currently in those tabs.</p></div>
+        <div class="sync-controls"><input id="sheetUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/.../exec" aria-label="Google Apps Script web app URL" /><button class="primary-button" id="saveSheetUrl" type="button">Save URL</button><button class="sync-button" id="sheetPush" type="button">Back up</button><button class="sync-button" id="sheetPull" type="button">Restore</button></div>
       </section>
 
       <section id="alerts" class="alerts" aria-live="polite"></section>

@@ -14,8 +14,8 @@ For temporary testing only, serve the folder from your laptop and open its LAN a
 2. In that sheet choose **Extensions → Apps Script**.
 3. Replace the default code with [`google-apps-script/Code.gs`](google-apps-script/Code.gs), pasting your Sheet ID into `SHEET_ID`.
 4. Click **Deploy → New deployment → Web app**. Set **Execute as: Me** and **Who has access: Anyone with the link**, then deploy and authorize it.
-5. Copy the deployment URL ending in `/exec`. In the planner, tap **Sync Sheet**, paste it, tap **Save connection**, then tap **Sync Sheet** once more.
+5. Copy the deployment URL ending in `/exec`. In the planner, tap **Google Sheet**, paste it, tap **Save URL**, then tap **Back up**.
 
-The Sheet stores one backup row per device, containing your planner data as JSON. The latest version wins: if the Sheet has a newer backup when you sync, it restores that data to the app.
+The first backup creates readable database tabs: `semesters`, `subjects`, `apel_c`, `progress`, and `settings`. You can edit those tab rows directly in Google Sheets. When you finish editing, tap **Restore** in the planner to load the Sheet version. Back up again after editing in the planner.
 
 Keep the Apps Script URL private: anyone holding that URL can access the endpoint. The app does not contain your Google account credentials or the spreadsheet ID.
