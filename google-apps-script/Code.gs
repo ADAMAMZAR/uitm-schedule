@@ -42,6 +42,11 @@ function rows(name) {
 }
 function bool(value) { return value === true || String(value).toLowerCase() === 'true'; }
 function num(value, fallback) { const result = Number(value); return Number.isFinite(result) ? result : fallback; }
+function timeValue(value, fallback) {
+  if (value instanceof Date && !isNaN(value.getTime())) return Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm');
+  if (typeof value === 'number' && value >= 0 && value < 1) { const minutes = Math.round(value * 24 * 60); return ('0' + Math.floor(minutes / 60)).slice(-2) + ':' + ('0' + (minutes % 60)).slice(-2); }
+  const text = String(value || ''); return /^\d{2}:\d{2}/.test(text) ? text.slice(0, 5) : fallback;
+}
 
 function writeData(data) {
   const semesters = Array.isArray(data.semesters) ? data.semesters : [];
@@ -57,7 +62,7 @@ function readData() {
   const subjects = rows('subjects');
   const semesters = rows('semesters').sort((a, b) => num(a.sort_order, 0) - num(b.sort_order, 0)).map((term) => ({
     id: String(term.id), name: String(term.name), courses: subjects.filter((course) => String(course.semester_id) === String(term.id)).map((course) => ({
-      id: String(course.id), name: String(course.subject_name), code: String(course.course_code), credits: num(course.credits, 0), type: String(course.type || 'Core'), session: String(course.session || '1'), start: String(course.start_time || '08:30'), end: String(course.end_time || '10:30'), room: String(course.room || ''), notes: String(course.notes || ''), selected: bool(course.selected), tbc: bool(course.tbc), part: course.part === '' ? undefined : num(course.part, course.part)
+      id: String(course.id), name: String(course.subject_name), code: String(course.course_code), credits: num(course.credits, 0), type: String(course.type || 'Core'), session: String(course.session || '1'), start: timeValue(course.start_time, '08:30'), end: timeValue(course.end_time, '10:30'), room: String(course.room || ''), notes: String(course.notes || ''), selected: bool(course.selected), tbc: bool(course.tbc), part: course.part === '' ? undefined : num(course.part, course.part)
     }))
   }));
   return {

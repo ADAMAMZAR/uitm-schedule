@@ -4,6 +4,14 @@ const loadCatalogue = !saved || (saved.length === 1 && saved[0].courses.length =
 const state = { view: '1', semesters: loadCatalogue ? [{ id: crypto.randomUUID(), name: 'Programme course catalogue', courses: DEFAULT_COURSES }] : saved, active: 0 };
 const apelCourses = JSON.parse(localStorage.getItem('uitm-apel-courses') || '[]');
 const completedCourses = JSON.parse(localStorage.getItem('uitm-completed-courses') || 'null') || COMPLETED_COURSES;
+function normalizeTimeValue(value, fallback = '08:30') {
+  if (typeof value === 'string' && /^\d{2}:\d{2}/.test(value)) return value.slice(0, 5);
+  if (typeof value === 'number' && value >= 0 && value < 1) { const minutes = Math.round(value * 24 * 60); return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`; }
+  const parsed = new Date(value); if (!Number.isNaN(parsed.getTime())) return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+  return fallback;
+}
+function normalizeCourses() { state.semesters.forEach((term) => term.courses.forEach((course) => { course.start = normalizeTimeValue(course.start); course.end = normalizeTimeValue(course.end, '10:30'); })); }
+normalizeCourses();
 const semester = () => state.semesters[state.active];
 const touch = () => localStorage.setItem('uitm-last-updated', new Date().toISOString());
 const persist = () => { localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); touch(); };
@@ -17,7 +25,7 @@ const setSyncStatus = (message) => { $('#syncStatus').textContent = message; };
 const snapshot = () => ({ semesters: state.semesters, apelCourses, completedCourses, currentPart: Number(localStorage.getItem('uitm-current-part') || 3), active: state.active, updatedAt: localStorage.getItem('uitm-last-updated') || new Date().toISOString() });
 function applySnapshot(data) {
   if (!data || !Array.isArray(data.semesters) || !Array.isArray(data.apelCourses)) return false;
-  state.semesters = data.semesters; state.active = Math.min(Number(data.active) || 0, state.semesters.length - 1); apelCourses.splice(0, apelCourses.length, ...data.apelCourses);
+  state.semesters = data.semesters; state.active = Math.min(Number(data.active) || 0, state.semesters.length - 1); normalizeCourses(); apelCourses.splice(0, apelCourses.length, ...data.apelCourses);
   if (Array.isArray(data.completedCourses)) completedCourses.splice(0, completedCourses.length, ...data.completedCourses);
   localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); return true;
 }
@@ -64,7 +72,7 @@ if (timetableUpdated) persist();
 let apelSelectionUpdated = false;
 state.semesters.forEach((term) => term.courses.forEach((course) => { if (apelCodes().has(course.code) && course.selected) { course.selected = false; apelSelectionUpdated = true; } }));
 if (apelSelectionUpdated) persist();
-const formatTime = (value) => new Date(`2000-01-01T${value}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const formatTime = (value) => new Date(`2000-01-01T${normalizeTimeValue(value)}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const esc = (value) => { const node = document.createElement('div'); node.textContent = value; return node.innerHTML; };
 const overlap = (a, b) => a.start < b.end && b.start < a.end;
 const sameWeek = (a, b) => a.session === 'both' || b.session === 'both' || a.session === b.session;
@@ -161,5 +169,6 @@ $('#newSemester').onclick = () => { const name = prompt('Name this future semest
 $('#sheetSync').onclick = openSheetPanel;
 $('#sheetPush').onclick = () => databaseSync('push');
 $('#sheetPull').onclick = () => databaseSync('pull');
-$('#saveSheetUrl').onclick = () => { const url = $('#sheetUrl').value.trim(); if (!/^https:\/\/script\.google\.com\//.test(url)) { setSyncStatus('Use the deployed Google Apps Script URL that starts with https://script.google.com/.'); return; } localStorage.setItem('uitm-sheet-url', url); setSyncStatus('Connection saved. Back up to create or update your database.'); };
+$('#sheetUrl').oninput = () => { const url = $('#sheetUrl').value.trim(); if (/^https:\/\/script\.google\.com\//.test(url)) localStorage.setItem('uitm-sheet-url', url); };
+$('#saveSheetUrl').onclick = () => { const url = $('#sheetUrl').value.trim(); if (!/^https:\/\/script\.google\.com\//.test(url)) { setSyncStatus('Use the deployed Google Apps Script URL that starts with https://script.google.com/.'); return; } localStorage.setItem('uitm-sheet-url', url); setSyncStatus('Connection saved on this device. Back up to create or update your database.'); };
 render();
