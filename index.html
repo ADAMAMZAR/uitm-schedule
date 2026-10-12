@@ -1,140 +1,246 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#12352f" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="UiTM Planner" />
-    <title>UiTM Sunday Studio</title>
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="apel.css" />
-    <link rel="stylesheet" href="dates.css" />
-    <link rel="stylesheet" href="apel-actions.css" />
-  </head>
-  <body>
-    <main class="shell">
-      <header class="masthead">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#12352f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="UiTM Planner" />
+  <title>UiTM Sunday Studio</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style"
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" /></noscript>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="apel.css" />
+  <link rel="stylesheet" href="dates.css" />
+  <link rel="stylesheet" href="apel-actions.css" />
+</head>
+
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">UiTM · Sunday timetable planner</p>
+        <h1>Your semester, <em>in rhythm.</em></h1>
+        <p class="lede">Plan alternate Sunday classes without mistaking Session 1 and Session 2 for a clash.</p>
+      </div>
+    </header>
+
+    <section class="semester-bar" aria-label="Semester controls">
+      <div class="semester-field">
+        <label for="semesterName">Active semester</label>
+        <input id="semesterName" value="Current semester" maxlength="40" />
+        <select id="semesterPicker" aria-label="Switch semester"></select>
+      </div>
+      <div class="part-field">
+        <label for="currentPart">Current part</label>
+        <input id="currentPart" type="number" min="1" max="11" value="3" inputmode="numeric" />
+        <small>Change this when you begin a new semester.</small>
+      </div>
+      <div class="credit-meter">
+        <div class="credit-label"><span>Selected credits</span><strong id="creditValue">0 / 16</strong></div>
+        <div class="meter"><i id="creditFill"></i></div>
+      </div>
+      <div class="semester-actions">
+        <button class="sync-button" id="sheetSync" type="button">Google Sheet</button>
+        <button class="outline-button" id="newSemester">+ New semester</button>
+      </div>
+    </section>
+
+    <section class="sync-panel" id="syncPanel" hidden aria-live="polite">
+      <div>
+        <p class="eyebrow">Google Sheets database</p><strong id="syncStatus">Not connected</strong>
+        <p>Back up sends all planner data to editable Sheet tabs. Restore loads the data currently in those tabs.</p>
+      </div>
+      <div class="sync-controls"><input id="sheetUrl" type="url" inputmode="url"
+          placeholder="https://script.google.com/macros/s/.../exec"
+          aria-label="Google Apps Script web app URL" /><button class="primary-button" id="saveSheetUrl"
+          type="button">Save URL</button><button class="sync-button" id="sheetPush" type="button">Back
+          up</button><button class="sync-button" id="sheetPull" type="button">Restore</button></div>
+    </section>
+
+    <section id="alerts" class="alerts" aria-live="polite"></section>
+
+    <section class="card courses-card">
+      <div class="card-heading">
         <div>
-          <p class="eyebrow">UiTM · Sunday timetable planner</p>
-          <h1>Your semester, <em>in rhythm.</em></h1>
-          <p class="lede">Plan alternate Sunday classes without mistaking Session 1 and Session 2 for a clash.</p>
+          <p class="eyebrow">Academic calendar</p>
+          <h2>Alternating Sunday dates</h2>
         </div>
-      </header>
+        <div class="date-legend"><span class="s1">Session 1</span><span class="s2">Session 2</span></div>
+      </div>
+      <div id="classDates" class="dates-strip"></div>
+    </section>
 
-      <section class="semester-bar" aria-label="Semester controls">
-        <div class="semester-field">
-          <label for="semesterName">Active semester</label>
-          <input id="semesterName" value="Current semester" maxlength="40" />
-          <select id="semesterPicker" aria-label="Switch semester"></select>
-        </div>
-        <div class="part-field">
-          <label for="currentPart">Current part</label>
-          <input id="currentPart" type="number" min="1" max="11" value="3" inputmode="numeric" />
-          <small>Change this when you begin a new semester.</small>
-        </div>
-        <div class="credit-meter">
-          <div class="credit-label"><span>Selected credits</span><strong id="creditValue">0 / 16</strong></div>
-          <div class="meter"><i id="creditFill"></i></div>
-        </div>
-        <div class="semester-actions">
-          <button class="sync-button" id="sheetSync" type="button">Google Sheet</button>
-          <button class="outline-button" id="newSemester">+ New semester</button>
-        </div>
-      </section>
+    <section class="card progress-card">
+      <div class="card-heading">
+        <div>
+          <p class="eyebrow">Academic progress</p>
+          <h2>Your completed subjects</h2>
+        </div><span id="completedCredits" class="course-count">0 credits</span>
+      </div>
+      <div class="progress-grid">
+        <section class="progress-column">
+          <header><span>Previous parts</span><strong id="previousCount">0</strong></header>
+          <div id="previousCourses" class="progress-list"></div>
+        </section>
+        <section class="progress-column current">
+          <header><span id="currentPartTitle">Part 3</span><strong id="currentCount">0</strong></header>
+          <div id="currentCourses" class="progress-list"></div>
+        </section>
+        <section class="progress-column exemption">
+          <header><span>Credit exemption</span><strong id="exemptionCount">0</strong></header>
+          <div id="exemptionCourses" class="progress-list"></div>
+        </section>
+      </div>
+    </section>
 
-      <section class="sync-panel" id="syncPanel" hidden aria-live="polite">
-        <div><p class="eyebrow">Google Sheets database</p><strong id="syncStatus">Not connected</strong><p>Back up sends all planner data to editable Sheet tabs. Restore loads the data currently in those tabs.</p></div>
-        <div class="sync-controls"><input id="sheetUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/.../exec" aria-label="Google Apps Script web app URL" /><button class="primary-button" id="saveSheetUrl" type="button">Save URL</button><button class="sync-button" id="sheetPush" type="button">Back up</button><button class="sync-button" id="sheetPull" type="button">Restore</button></div>
-      </section>
+    <section class="card courses-card">
+      <div class="card-heading">
+        <div>
+          <p class="eyebrow">Credit exemption plan</p>
+          <h2>APel C subjects <span class="info-tip" tabindex="0"
+              data-tip="APel C is kept separate from normal classes. A course added here is locked from normal timetable selection.">i</span>
+          </h2>
+        </div><strong id="apelTotal">RM0</strong>
+      </div>
+      <div class="apel-summary"><span><b>RM100</b> registration <span class="info-tip" tabindex="0"
+            data-tip="The registration fee is charged for every APel C subject you add.">i</span></span><span><b>RM200</b>
+          success fee <span class="info-tip" tabindex="0"
+            data-tip="This fee is added only after you mark that APel C subject as successful. Total per successful subject: RM300.">i</span></span>
+      </div>
+      <form id="apelForm" class="two-col">
+        <label>Subject<select id="apelCourse" required></select></label>
+        <label>Planned part<input id="apelPart" type="number" min="1" max="11" required placeholder="e.g. 5" /></label>
+        <button class="primary-button" type="submit">Add to APel C</button>
+      </form>
+      <div id="apelList" class="apel-list"></div>
+      <div id="apelEmpty" class="empty-state">No APel C subjects planned yet.</div>
+    </section>
 
-      <section id="alerts" class="alerts" aria-live="polite"></section>
-
-      <section class="card courses-card">
-        <div class="card-heading"><div><p class="eyebrow">Academic calendar</p><h2>Alternating Sunday dates</h2></div><div class="date-legend"><span class="s1">Session 1</span><span class="s2">Session 2</span></div></div>
-        <div id="classDates" class="dates-strip"></div>
-      </section>
-
-      <section class="card progress-card">
-        <div class="card-heading"><div><p class="eyebrow">Academic progress</p><h2>Your completed subjects</h2></div><span id="completedCredits" class="course-count">0 credits</span></div>
-        <div class="progress-grid">
-          <section class="progress-column"><header><span>Previous parts</span><strong id="previousCount">0</strong></header><div id="previousCourses" class="progress-list"></div></section>
-          <section class="progress-column current"><header><span id="currentPartTitle">Part 3</span><strong id="currentCount">0</strong></header><div id="currentCourses" class="progress-list"></div></section>
-          <section class="progress-column exemption"><header><span>Credit exemption</span><strong id="exemptionCount">0</strong></header><div id="exemptionCourses" class="progress-list"></div></section>
-        </div>
-      </section>
-
-      <section class="card courses-card">
-        <div class="card-heading"><div><p class="eyebrow">Credit exemption plan</p><h2>APel C subjects <span class="info-tip" tabindex="0" data-tip="APel C is kept separate from normal classes. A course added here is locked from normal timetable selection.">i</span></h2></div><strong id="apelTotal">RM0</strong></div>
-        <div class="apel-summary"><span><b>RM100</b> registration <span class="info-tip" tabindex="0" data-tip="The registration fee is charged for every APel C subject you add.">i</span></span><span><b>RM200</b> success fee <span class="info-tip" tabindex="0" data-tip="This fee is added only after you mark that APel C subject as successful. Total per successful subject: RM300.">i</span></span></div>
-        <form id="apelForm" class="two-col">
-          <label>Subject<select id="apelCourse" required></select></label>
-          <label>Planned part<input id="apelPart" type="number" min="1" max="11" required placeholder="e.g. 5" /></label>
-          <button class="primary-button" type="submit">Add to APel C</button>
-        </form>
-        <div id="apelList" class="apel-list"></div>
-        <div id="apelEmpty" class="empty-state">No APel C subjects planned yet.</div>
-      </section>
-
-      <section class="planner-grid">
-        <article class="card form-card">
-          <div class="card-heading">
-            <div><p class="eyebrow">Course editor</p><h2>Add a subject</h2></div>
-            <button class="text-button hidden" id="cancelEdit">Cancel edit</button>
+    <section class="planner-grid">
+      <article class="card form-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">Course editor</p>
+            <h2>Add a subject</h2>
           </div>
-          <form id="courseForm">
-            <input type="hidden" id="courseId" />
-            <label>Subject name<input id="courseName" required placeholder="e.g. Web Programming" /></label>
-            <label>Course code <input id="courseCode" placeholder="e.g. CSC584" /></label>
-            <div class="two-col">
-              <label>Credits<input id="courseCredits" type="number" min="1" max="16" required value="3" /></label>
-              <label>Class type
-                <select id="courseType"><option value="Core">Core</option><option value="Elective">Elective</option></select>
-              </label>
-            </div>
-            <label>Session
-              <select id="courseSession"><option value="1">Session 1 · every other Sunday</option><option value="2">Session 2 · alternating Sunday</option><option value="both">Both sessions · every Sunday</option></select>
+          <button class="text-button hidden" id="cancelEdit">Cancel edit</button>
+        </div>
+        <form id="courseForm">
+          <input type="hidden" id="courseId" />
+          <label>Subject name<input id="courseName" required placeholder="e.g. Web Programming" /></label>
+          <label>Course code <input id="courseCode" placeholder="e.g. CSC584" /></label>
+          <div class="two-col">
+            <label>Credits<input id="courseCredits" type="number" min="1" max="16" required value="3" /></label>
+            <label>Class type
+              <select id="courseType">
+                <option value="Core">Core</option>
+                <option value="Elective">Elective</option>
+              </select>
             </label>
-            <div class="two-col">
-              <label>Starts<select id="courseStart" required><option value="08:30">8:30 AM</option><option value="10:30">10:30 AM</option><option value="14:30">2:30 PM</option><option value="16:30">4:30 PM</option></select></label>
-              <label>Ends<select id="courseEnd" required><option value="10:30">10:30 AM</option><option value="12:30">12:30 PM</option><option value="16:30">4:30 PM</option><option value="18:30">6:30 PM</option></select></label>
-            </div>
-            <label>Room / location<input id="courseRoom" placeholder="e.g. DK 3.12" /></label>
-            <label>Notes<input id="courseNotes" placeholder="e.g. Lecturer, group, or reminder" maxlength="120" /></label>
-            <label class="checkbox"><input id="courseSelected" type="checkbox" checked /><span><strong>Include in timetable</strong><small>Turn this off while deciding on an elective.</small></span></label>
-            <button class="primary-button" type="submit">Add subject</button>
-          </form>
-        </article>
+          </div>
+          <label>Session
+            <select id="courseSession">
+              <option value="1">Session 1 · every other Sunday</option>
+              <option value="2">Session 2 · alternating Sunday</option>
+              <option value="both">Both sessions · every Sunday</option>
+            </select>
+          </label>
+          <div class="two-col">
+            <label>Starts<select id="courseStart" required>
+                <option value="08:30">8:30 AM</option>
+                <option value="10:30">10:30 AM</option>
+                <option value="14:30">2:30 PM</option>
+                <option value="16:30">4:30 PM</option>
+              </select></label>
+            <label>Ends<select id="courseEnd" required>
+                <option value="10:30">10:30 AM</option>
+                <option value="12:30">12:30 PM</option>
+                <option value="16:30">4:30 PM</option>
+                <option value="18:30">6:30 PM</option>
+              </select></label>
+          </div>
+          <label>Room / location<input id="courseRoom" placeholder="e.g. DK 3.12" /></label>
+          <label>Notes<input id="courseNotes" placeholder="e.g. Lecturer, group, or reminder" maxlength="120" /></label>
+          <label class="checkbox"><input id="courseSelected" type="checkbox" checked /><span><strong>Include in
+                timetable</strong><small>Turn this off while deciding on an elective.</small></span></label>
+          <button class="primary-button" type="submit">Add subject</button>
+        </form>
+      </article>
 
-        <article class="card schedule-card">
-          <div class="card-heading"><div><p class="eyebrow">Sunday · selected semester</p><h2 id="scheduleTitle">Semester timetable</h2></div><span class="session-key" id="sessionKey">S1 + S2</span></div>
-          <div class="timetable-scroll"><div id="timeline" class="timetable" aria-label="Sunday semester timetable"></div></div>
-          <div class="empty-state" id="timelineEmpty">No selected classes in this semester yet.<br />Add a subject and choose its session and timetable slot.</div>
-        </article>
-      </section>
+      <article class="card schedule-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">Sunday · selected semester</p>
+            <h2 id="scheduleTitle">Semester timetable</h2>
+          </div><span class="session-key" id="sessionKey">S1 + S2</span>
+        </div>
+        <div class="timetable-scroll">
+          <div id="timeline" class="timetable" aria-label="Sunday semester timetable"></div>
+        </div>
+        <div class="empty-state" id="timelineEmpty">No selected classes in this semester yet.<br />Add a subject and
+          choose its session and timetable slot.</div>
+      </article>
+    </section>
 
-      <section class="card courses-card">
-        <div class="card-heading"><div><p class="eyebrow">Course basket</p><h2>All subjects</h2></div><span id="courseCount" class="course-count">0 subjects</span></div>
-        <div class="course-table-wrap"><table class="course-table"><thead><tr><th>No.</th><th>Subject name</th><th>Code</th><th>Credit</th><th>Part</th><th>Notes</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="courseList"></tbody></table></div>
-        <div id="coursesEmpty" class="empty-state">Your subjects will appear here. Electives can stay unselected until you decide.</div>
-      </section>
-    </main>
-    <template id="courseTemplate">
-      <tr class="course-row">
-        <td class="course-number"><button class="course-select" aria-label="Toggle timetable selection"></button><span></span></td><td class="course-name"><strong></strong><small class="course-meta"></small></td><td class="course-code"></td><td class="course-credit"></td><td class="course-part"></td><td class="course-notes"></td>
-        <td class="course-actions"><details><summary aria-label="Subject actions" title="Subject actions">✎</summary><div class="action-popover"><button class="edit-button">Edit</button><button class="delete-button">Remove</button></div></details></td>
-      </tr>
-    </template>
-    <script src="catalogue.js"></script>
-    <script src="calendar.js"></script>
-    <script src="progress.js"></script>
-    <script src="app.js"></script>
-    <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');</script>
-  </body>
+    <section class="card courses-card">
+      <div class="card-heading">
+        <div>
+          <p class="eyebrow">Course basket</p>
+          <h2>All subjects</h2>
+        </div><span id="courseCount" class="course-count">0 subjects</span>
+      </div>
+      <div class="course-table-wrap">
+        <table class="course-table">
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>Subject name</th>
+              <th>Code</th>
+              <th>Credit</th>
+              <th>Part</th>
+              <th>Notes</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="courseList"></tbody>
+        </table>
+      </div>
+      <div id="coursesEmpty" class="empty-state">Your subjects will appear here. Electives can stay unselected until you
+        decide.</div>
+    </section>
+  </main>
+  <template id="courseTemplate">
+    <tr class="course-row">
+      <td class="course-number"><button class="course-select"
+          aria-label="Toggle timetable selection"></button><span></span></td>
+      <td class="course-name"><strong></strong><small class="course-meta"></small></td>
+      <td class="course-code"></td>
+      <td class="course-credit"></td>
+      <td class="course-part"></td>
+      <td class="course-notes"></td>
+      <td class="course-actions">
+        <details>
+          <summary aria-label="Subject actions" title="Subject actions">✎</summary>
+          <div class="action-popover"><button class="edit-button">Edit</button><button
+              class="delete-button">Remove</button></div>
+        </details>
+      </td>
+    </tr>
+  </template>
+  <script src="catalogue.js"></script>
+  <script src="calendar.js"></script>
+  <script src="progress.js"></script>
+  <script src="app.js"></script>
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');</script>
+</body>
+
 </html>
