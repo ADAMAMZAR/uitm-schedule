@@ -171,4 +171,10 @@ $('#sheetPush').onclick = () => databaseSync('push');
 $('#sheetPull').onclick = () => databaseSync('pull');
 $('#sheetUrl').oninput = () => { const url = $('#sheetUrl').value.trim(); if (/^https:\/\/script\.google\.com\//.test(url)) localStorage.setItem('uitm-sheet-url', url); };
 $('#saveSheetUrl').onclick = () => { const url = $('#sheetUrl').value.trim(); if (!/^https:\/\/script\.google\.com\//.test(url)) { setSyncStatus('Use the deployed Google Apps Script URL that starts with https://script.google.com/.'); return; } localStorage.setItem('uitm-sheet-url', url); setSyncStatus('Connection saved on this device. Back up to create or update your database.'); };
+// Setup link: open the site once per device with #sheet=<exec URL>. The hash never reaches the server or the repo.
+const linkedSheet = new URLSearchParams(location.hash.slice(1)).get('sheet');
+if (linkedSheet) {
+  history.replaceState(null, '', location.pathname + location.search);
+  if (/^https:\/\/script\.google\.com\//.test(linkedSheet)) { localStorage.setItem('uitm-sheet-url', linkedSheet); openSheetPanel(); setSyncStatus('Connection saved from your setup link. Tap Restore to load your Sheet.'); }
+}
 render();

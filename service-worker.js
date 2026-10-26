@@ -1,4 +1,4 @@
-const CACHE = 'uitm-sunday-studio-v11';
+const CACHE = 'uitm-sunday-studio-v12';
 const ASSETS = ['./', './index.html', './styles.css', './apel.css', './apel-actions.css', './dates.css', './catalogue.js', './calendar.js', './progress.js', './app.js', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS))));
