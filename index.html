@@ -33,24 +33,14 @@
       </div>
     </header>
 
-    <section class="semester-bar" aria-label="Semester controls">
-      <div class="semester-field">
-        <label for="semesterName">Active semester</label>
-        <input id="semesterName" value="Current semester" maxlength="40" />
-        <select id="semesterPicker" aria-label="Switch semester"></select>
-      </div>
+    <section class="semester-bar overview-bar" aria-label="Planner controls">
       <div class="part-field">
         <label for="currentPart">Current part</label>
         <input id="currentPart" type="number" min="1" max="11" value="3" inputmode="numeric" />
         <small>Change this when you begin a new semester.</small>
       </div>
-      <div class="credit-meter">
-        <div class="credit-label"><span>Selected credits</span><strong id="creditValue">0 / 16</strong></div>
-        <div class="meter"><i id="creditFill"></i></div>
-      </div>
       <div class="semester-actions">
         <button class="sync-button" id="sheetSync" type="button">Google Sheet</button>
-        <button class="outline-button" id="newSemester">+ New semester</button>
       </div>
     </section>
 
@@ -65,8 +55,6 @@
           type="button">Save URL</button><button class="sync-button" id="sheetPush" type="button">Back
           up</button><button class="sync-button" id="sheetPull" type="button">Restore</button></div>
     </section>
-
-    <section id="alerts" class="alerts" aria-live="polite"></section>
 
     <section class="card courses-card">
       <div class="card-heading">
@@ -124,6 +112,23 @@
       <div id="apelList" class="apel-list"></div>
       <div id="apelEmpty" class="empty-state">No APel C subjects planned yet.</div>
     </section>
+
+    <section class="semester-bar semester-plan-bar" aria-label="Semester controls">
+      <div class="semester-field">
+        <label for="semesterName">Active semester</label>
+        <input id="semesterName" value="Current semester" maxlength="40" />
+        <select id="semesterPicker" aria-label="Switch semester"></select>
+      </div>
+      <div class="credit-meter">
+        <div class="credit-label"><span>Selected credits</span><strong id="creditValue">0 / 16</strong></div>
+        <div class="meter"><i id="creditFill"></i></div>
+      </div>
+      <div class="semester-actions">
+        <button class="outline-button" id="newSemester">+ New semester</button>
+      </div>
+    </section>
+
+    <section id="alerts" class="alerts" aria-live="polite"></section>
 
     <section class="planner-grid">
       <article class="card form-card">

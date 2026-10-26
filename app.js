@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const saved = JSON.parse(localStorage.getItem('uitm-semesters') || 'null');
 const loadCatalogue = !saved || (saved.length === 1 && saved[0].courses.length === 0);
-const state = { view: '1', semesters: loadCatalogue ? [{ id: crypto.randomUUID(), name: 'Programme course catalogue', courses: DEFAULT_COURSES }] : saved, active: 0 };
+const state = { view: '1', semesters: loadCatalogue ? [{ id: crypto.randomUUID(), name: `Part ${localStorage.getItem('uitm-current-part') || 3}`, courses: DEFAULT_COURSES }] : saved, active: 0 };
 const apelCourses = JSON.parse(localStorage.getItem('uitm-apel-courses') || '[]');
 const completedCourses = JSON.parse(localStorage.getItem('uitm-completed-courses') || 'null') || COMPLETED_COURSES;
 function normalizeTimeValue(value, fallback = '08:30') {
@@ -165,7 +165,14 @@ $('#semesterName').onchange = (event) => { semester().name = event.target.value 
 $('#semesterPicker').onchange = (event) => { state.active = Number(event.target.value); render(); };
 $('#currentPart').onchange = (event) => { const part = Math.max(1, Math.min(11, Number(event.target.value) || 3)); localStorage.setItem('uitm-current-part', String(part)); persistProgress(); render(); };
 $('#courseStart').onchange = (event) => { const ends = { '08:30': '10:30', '10:30': '12:30', '14:30': '16:30', '16:30': '18:30' }; $('#courseEnd').value = ends[event.target.value]; };
-$('#newSemester').onclick = () => { const name = prompt('Name this future semester:', `Semester ${state.semesters.length + 1}`); if (name) { state.semesters.push({ id: crypto.randomUUID(), name, courses: DEFAULT_COURSES.map((course) => ({ ...course, id: crypto.randomUUID() })) }); state.active = state.semesters.length - 1; persist(); render(); } };
+$('#newSemester').onclick = () => {
+  const part = Number(prompt('Which part is this semester? (1-11)', Number(localStorage.getItem('uitm-current-part') || 3) + 1));
+  if (!Number.isInteger(part) || part < 1 || part > 11) return;
+  const name = `Part ${part}`; const existing = state.semesters.findIndex((term) => term.name === name);
+  if (existing >= 0) state.active = existing;
+  else { state.semesters.push({ id: crypto.randomUUID(), name, courses: DEFAULT_COURSES.map((course) => ({ ...course, id: crypto.randomUUID() })) }); state.active = state.semesters.length - 1; persist(); }
+  render();
+};
 $('#sheetSync').onclick = openSheetPanel;
 $('#sheetPush').onclick = () => databaseSync('push');
 $('#sheetPull').onclick = () => databaseSync('pull');
