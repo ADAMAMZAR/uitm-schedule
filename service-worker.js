@@ -1,5 +1,5 @@
-const CACHE = 'uitm-sunday-studio-v21';
-const ASSETS = ['./', './index.html', './styles.css', './apel.css', './apel-actions.css', './dates.css', './catalogue.js', './calendar.js', './progress.js', './app.js', './manifest.webmanifest'];
+const CACHE = 'uitm-sunday-studio-v22';
+const ASSETS = ['./', './index.html', './styles.css', './apel.css', './apel-actions.css', './dates.css', './catalogue.js', './calendar.js', './progress.js', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 // skipWaiting: a new version takes over on the next reload. cache: 'reload' skips the browser's HTTP cache so a deploy never caches stale files.
 self.addEventListener('install', (event) => { self.skipWaiting(); event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))); });
