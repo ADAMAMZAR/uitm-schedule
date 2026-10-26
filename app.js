@@ -34,7 +34,7 @@ function applySnapshot(data) {
   if (!data || !Array.isArray(data.semesters) || !Array.isArray(data.apelCourses)) return false;
   state.semesters = data.semesters; state.active = Math.min(Number(data.active) || 0, state.semesters.length - 1); normalizeCourses(); apelCourses.splice(0, apelCourses.length, ...data.apelCourses);
   if (Array.isArray(data.completedCourses)) completedCourses.splice(0, completedCourses.length, ...data.completedCourses);
-  state.semesters.forEach(addTakenSubjects); localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); return true;
+  state.semesters.forEach(syncTakenSubjects); localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); return true;
 }
 function openSheetPanel() {
   $('#syncPanel').hidden = false; $('#sheetUrl').value = sheetUrl();
@@ -70,13 +70,18 @@ async function syncSheet() {
     else setSyncStatus(`Backed up to Google Sheets · ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
   } catch (error) { setSyncStatus(`Could not sync: ${error.message}`); }
 }
-// A part's plan always holds the subjects your progress records as taken in that part. Times stay TBC until A_GROUP_TIMES has them.
-function addTakenSubjects(term) {
-  const missing = completedCourses.filter((taken) => taken.takenPart === partNumber(term) && !term.courses.some((course) => course.code === taken.code));
+// A part with progress records holds exactly those subjects (plus ones you added yourself), never catalogue copies meant for
+// planning later parts, so semesters never mix. Times stay TBC until A_GROUP_TIMES has them.
+function syncTakenSubjects(term) {
+  const taken = completedCourses.filter((course) => course.takenPart === partNumber(term));
+  if (!taken.length) return 0;
+  const keep = new Set(taken.map((course) => course.code)); const catalogue = new Set(DEFAULT_COURSES.map((course) => course.code));
+  const before = term.courses.length; term.courses = term.courses.filter((course) => keep.has(course.code) || !catalogue.has(course.code));
+  const removed = before - term.courses.length; const missing = taken.filter((course) => !term.courses.some((item) => item.code === course.code));
   missing.forEach((taken) => term.courses.push({ id: crypto.randomUUID(), code: taken.code, name: taken.name, credits: taken.credits, part: taken.takenPart, type: 'Core', session: '1', start: '08:30', end: '10:30', room: '', selected: true, tbc: true }));
-  return missing.length;
+  return removed + missing.length;
 }
-let timetableUpdated = state.semesters.map(addTakenSubjects).some(Boolean);
+let timetableUpdated = state.semesters.map(syncTakenSubjects).some(Boolean);
 state.semesters.forEach((term) => term.courses.forEach((course) => {
   const slot = A_GROUP_TIMES[course.code];
   if (slot && course.tbc) { Object.assign(course, slot); timetableUpdated = true; }
@@ -112,7 +117,7 @@ function render() {
   const lockedCodes = apelCodes(); const options = DEFAULT_COURSES.filter((course) => !lockedCodes.has(course.code));
   $('#apelCourse').innerHTML = `<option value="">Choose a subject</option>${options.map((course) => `<option value="${course.code}">${course.code} - ${esc(course.name)}</option>`).join('')}`;
   const registration = apelCourses.length * 100; const successFees = apelCourses.filter((course) => course.success).length * 200;
-  $('#apelTotal').textContent = `RM${registration + successFees}`; const apelGroups = apelCourses.reduce((groups, course) => { (groups[course.part] ||= []).push(course); return groups; }, {}); $('#apelList').innerHTML = Object.keys(apelGroups).sort((a, b) => Number(a) - Number(b)).map((part) => `<section class="apel-group"><header><h3>Part ${part} <span class="info-tip" tabindex="0" data-tip="Part is the programme part/semester where you plan to place these APEL. C subjects.">i</span></h3><span>${apelGroups[part].length} subject${apelGroups[part].length === 1 ? '' : 's'}</span></header><div class="apel-cards">${apelGroups[part].map((course) => `<article class="apel-course"><div><p class="apel-code">${course.code}</p><h4>${esc(course.name)}</h4><p class="course-meta">${course.success ? 'Successful - RM300 total' : 'Result pending - RM100 currently'}</p></div><div class="row-actions"><button class="edit-button apel-success" data-id="${course.id}">${course.success ? 'Successful' : 'Mark successful'}</button><button class="delete-button apel-delete" data-id="${course.id}">Remove</button></div></article>`).join('')}</div></section>`).join('');
+  $('#apelTotal').textContent = `RM${registration + successFees}`; const apelGroups = apelCourses.reduce((groups, course) => { (groups[course.part] ||= []).push(course); return groups; }, {}); $('#apelList').innerHTML = Object.keys(apelGroups).sort((a, b) => Number(a) - Number(b)).map((part) => `<section class="apel-group"><header><h3>Group ${part} <span class="info-tip" tabindex="0" data-tip="Group is the APEL. C batch you plan to submit these subjects in.">i</span></h3><span>${apelGroups[part].length} subject${apelGroups[part].length === 1 ? '' : 's'}</span></header><div class="apel-cards">${apelGroups[part].map((course) => `<article class="apel-course"><div><p class="apel-code">${course.code}</p><h4>${esc(course.name)}</h4><p class="course-meta">${course.success ? 'Successful - RM300 total' : 'Result pending - RM100 currently'}</p></div><div class="row-actions"><button class="edit-button apel-success" data-id="${course.id}">${course.success ? 'Successful' : 'Mark successful'}</button><button class="delete-button apel-delete" data-id="${course.id}">Remove</button></div></article>`).join('')}</div></section>`).join('');
   $('#apelEmpty').style.display = apelCourses.length ? 'none' : 'block'; document.querySelectorAll('.apel-success').forEach((button) => button.onclick = () => { const course = apelCourses.find((item) => item.id === button.dataset.id); course.success = !course.success; persistApel(); render(); }); document.querySelectorAll('.apel-delete').forEach((button) => button.onclick = () => { const index = apelCourses.findIndex((item) => item.id === button.dataset.id); apelCourses.splice(index, 1); persistApel(); render(); });
   $('#alerts').innerHTML = warnings().map((message, index) => `<div class="alert ${index === 0 && total > 16 ? 'warning' : ''}">${message}</div>`).join('');
   const currentPart = Number(localStorage.getItem('uitm-current-part') || 3);
