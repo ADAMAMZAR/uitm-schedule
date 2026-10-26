@@ -134,13 +134,15 @@ function render() {
   $('#alerts').innerHTML = warnings().map((message, index) => `<div class="alert ${index === 0 && total > 16 ? 'warning' : ''}">${message}</div>`).join('');
   const currentPart = Number(localStorage.getItem('uitm-current-part') || 3);
   const previousCourses = completedCourses.filter((course) => typeof course.takenPart === 'number' && course.takenPart < currentPart);
-  const currentCourses = completedCourses.filter((course) => course.takenPart === currentPart);
+  // The current semester's subjects are still in progress; they live in that semester's plan, not here.
   const exemptionCourses = completedCourses.filter((course) => course.takenPart === 'credit exemption');
-  const progressRows = (courses, label) => courses.length ? courses.map((course) => `<article class="progress-row"><div><strong>${esc(course.code)}</strong><p>${esc(course.name)}</p></div><span>${course.credits} cr</span></article>`).join('') : `<p class="progress-empty">No subjects in ${label} yet.</p>`;
-  $('#currentPart').value = currentPart; $('#currentPartTitle').textContent = `Semester ${currentPart}`;
-  $('#previousCourses').innerHTML = progressRows(previousCourses, 'previous semesters'); $('#currentCourses').innerHTML = progressRows(currentCourses, `Semester ${currentPart}`); $('#exemptionCourses').innerHTML = progressRows(exemptionCourses, 'credit exemption');
-  $('#previousCount').textContent = previousCourses.length; $('#currentCount').textContent = currentCourses.length; $('#exemptionCount').textContent = exemptionCourses.length;
-  $('#completedCredits').textContent = `${completedCourses.reduce((sum, course) => sum + Number(course.credits), 0)} credits`;
+  const progressRows = (courses, label) => courses.length ? courses.map((course) => `<article class="progress-row"><div><strong>${esc(course.code)}</strong><p>${esc(course.name)}</p><div class="row-actions"><button class="edit-button" type="button" data-progress-edit="${esc(course.code)}">Edit</button><button class="delete-button" type="button" data-progress-remove="${esc(course.code)}">Remove</button></div></div><span>${course.credits} cr${typeof course.takenPart === 'number' ? ` · Sem ${course.takenPart}` : ''}</span></article>`).join('') : `<p class="progress-empty">No subjects in ${label} yet.</p>`;
+  $('#currentPart').value = currentPart;
+  $('#previousCourses').innerHTML = progressRows(previousCourses, 'previous semesters'); $('#exemptionCourses').innerHTML = progressRows(exemptionCourses, 'credit exemption');
+  $('#previousCount').textContent = previousCourses.length; $('#exemptionCount').textContent = exemptionCourses.length;
+  $('#completedCredits').textContent = `${[...previousCourses, ...exemptionCourses].reduce((sum, course) => sum + Number(course.credits), 0)} credits`;
+  document.querySelectorAll('[data-progress-edit]').forEach((button) => button.onclick = () => editProgress(button.dataset.progressEdit));
+  document.querySelectorAll('[data-progress-remove]').forEach((button) => button.onclick = () => { const record = completedCourses.find((item) => item.code === button.dataset.progressRemove); if (confirm(`Remove ${record.code} from your records?`)) saveProgress(record, null); });
   const timetableSlots = [
     { start: '08:30', end: '10:30', label: '8:30–10:30' },
     { start: '10:30', end: '12:30', label: '10:30–12:30' },
@@ -184,7 +186,12 @@ function render() {
     node.querySelector('.course-credit').textContent = `${course.credits} cr`; node.querySelector('.course-part').textContent = course.part ? `Semester ${course.part}` : '—'; node.querySelector('.course-notes').textContent = course.notes || (isApel ? 'APEL. C' : course.type);
     node.querySelector('.course-select').disabled = isApel; node.querySelector('.course-select').onclick = () => { if (!isApel) { course.selected = !course.selected; persist(); render(); } };
     node.querySelector('.edit-button').onclick = () => edit(course);
-    node.querySelector('.delete-button').onclick = () => { active.courses = active.courses.filter((item) => item.id !== course.id); persist(); render(); };
+    node.querySelector('.delete-button').onclick = () => {
+      // A taken subject comes back from your records on the next load, so removing it here removes the record too.
+      const record = takenRecord(course, active);
+      if (record) { if (confirm(`${course.code} is in your Semester ${record.takenPart} records. Remove it from both?`)) saveProgress(record, null); return; }
+      active.courses = active.courses.filter((item) => item.id !== course.id); persist(); render();
+    };
     list.append(node);
   });
   $('#coursesEmpty').style.display = active.courses.length ? 'none' : 'block'; $('#courseCount').textContent = `${active.courses.length} subject${active.courses.length === 1 ? '' : 's'}`;
@@ -197,8 +204,42 @@ $('#courseForm').onsubmit = (event) => {
   event.preventDefault(); const value = (id) => $(id).value.trim();
   const course = { id: value('#courseId') || crypto.randomUUID(), name: value('#courseName'), code: value('#courseCode'), credits: Number(value('#courseCredits')), type: value('#courseType'), session: value('#courseSession'), start: value('#courseStart'), end: value('#courseEnd'), room: value('#courseRoom'), notes: value('#courseNotes'), selected: $('#courseSelected').checked };
   if (course.end <= course.start) { alert('End time must be later than start time.'); return; }
-  const index = semester().courses.findIndex((item) => item.id === course.id); if (index >= 0) semester().courses[index] = course; else semester().courses.push(course);
+  const existing = semester().courses.find((item) => item.id === course.id);
+  if (existing) {
+    // Keep fields the form doesn't show (part, tbc); a TBC subject stays TBC until its session or time is actually changed.
+    const record = takenRecord(existing);
+    if (record) { Object.assign(record, { code: course.code, name: course.name, credits: course.credits }); persistProgress(); }
+    Object.assign(existing, course, { tbc: Boolean(existing.tbc) && course.session === existing.session && course.start === existing.start && course.end === existing.end });
+  } else semester().courses.push(course);
   persist(); $('#courseForm').reset(); $('#courseCredits').value = 3; $('#courseStart').value = '08:30'; $('#courseEnd').value = '10:30'; $('#courseSelected').checked = true; $('#courseForm .primary-button').textContent = 'Add subject'; $('#cancelEdit').classList.add('hidden'); render();
+};
+// Progress records are the source of truth for taken subjects; keep the matching subject in that semester's plan in step.
+function takenRecord(course, term = semester()) { return completedCourses.find((record) => record.code === course.code && record.takenPart === partNumber(term)); }
+function saveProgress(original, next) {
+  const term = original && state.semesters.find((item) => partNumber(item) === original.takenPart);
+  const course = term && term.courses.find((item) => item.code === original.code);
+  if (course && next && next.takenPart === original.takenPart) Object.assign(course, { code: next.code, name: next.name, credits: next.credits });
+  else if (course) term.courses = term.courses.filter((item) => item !== course);
+  if (original) completedCourses.splice(completedCourses.indexOf(original), 1, ...(next ? [next] : [])); else completedCourses.push(next);
+  state.semesters.forEach(syncTakenSubjects); persistProgress(); persist(); render();
+}
+function resetProgressForm() {
+  $('#progressForm').reset(); $('#progressOriginal').value = ''; $('#progressSubmit').textContent = 'Add subject';
+  $('#progressTaken').value = String(Math.max(1, Number(localStorage.getItem('uitm-current-part') || 3) - 1));
+}
+function editProgress(code) {
+  const record = completedCourses.find((item) => item.code === code);
+  $('#progressOriginal').value = record.code; $('#progressCode').value = record.code; $('#progressName').value = record.name; $('#progressCredits').value = record.credits; $('#progressTaken').value = String(record.takenPart);
+  $('#progressSubmit').textContent = 'Save changes'; $('#progressEditor').open = true; $('#progressForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+$('#progressTaken').innerHTML = ['credit exemption', ...Array.from({ length: 11 }, (_, i) => i + 1)].map((value) => `<option value="${value}">${value === 'credit exemption' ? 'Credit exemption' : `Semester ${value}`}</option>`).join('');
+resetProgressForm();
+$('#progressCancel').onclick = resetProgressForm;
+$('#progressForm').onsubmit = (event) => {
+  event.preventDefault(); const original = completedCourses.find((item) => item.code === $('#progressOriginal').value) || null; const taken = $('#progressTaken').value;
+  const next = { code: $('#progressCode').value.trim().toUpperCase(), name: $('#progressName').value.trim(), credits: Number($('#progressCredits').value), takenPart: taken === 'credit exemption' ? taken : Number(taken) };
+  if (completedCourses.some((item) => item !== original && item.code === next.code)) { alert(`${next.code} is already in your records.`); return; }
+  saveProgress(original, next); resetProgressForm();
 };
 $('#apelForm').onsubmit = (event) => {
   event.preventDefault(); const code = $('#apelCourse').value; const source = DEFAULT_COURSES.find((course) => course.code === code);

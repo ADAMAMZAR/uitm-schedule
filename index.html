@@ -70,7 +70,7 @@
       <div id="classDates" class="dates-strip"></div>
     </section>
 
-    <section class="card progress-card">
+    <section class="card courses-card progress-card">
       <div class="card-heading">
         <div>
           <p class="eyebrow">Academic progress</p>
@@ -82,15 +82,23 @@
           <header><span>Previous semesters</span><strong id="previousCount">0</strong></header>
           <div id="previousCourses" class="progress-list"></div>
         </section>
-        <section class="progress-column current">
-          <header><span id="currentPartTitle">Semester 3</span><strong id="currentCount">0</strong></header>
-          <div id="currentCourses" class="progress-list"></div>
-        </section>
         <section class="progress-column exemption">
           <header><span>Credit exemption</span><strong id="exemptionCount">0</strong></header>
           <div id="exemptionCourses" class="progress-list"></div>
         </section>
       </div>
+      <details class="progress-editor" id="progressEditor">
+        <summary>Add or edit a completed subject</summary>
+        <form id="progressForm" class="progress-form">
+          <input type="hidden" id="progressOriginal" />
+          <label>Course code<input id="progressCode" required maxlength="12" placeholder="e.g. CSC404" /></label>
+          <label>Subject name<input id="progressName" required placeholder="e.g. PROGRAMMING II" /></label>
+          <label>Credits<input id="progressCredits" type="number" min="0" max="16" required value="3" /></label>
+          <label>Taken in<select id="progressTaken"></select></label>
+          <button class="primary-button" type="submit" id="progressSubmit">Add subject</button>
+          <button class="text-button" type="button" id="progressCancel">Cancel</button>
+        </form>
+      </details>
     </section>
 
     <section class="card courses-card">
