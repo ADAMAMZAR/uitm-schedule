@@ -179,12 +179,15 @@ function render() {
     state.semesters[index].name = name; persist(); render();
   });
   const list = $('#courseList'); list.innerHTML = '';
+  const elsewhere = takenElsewhere(active);
   active.courses.forEach((course, index) => {
-    const node = $('#courseTemplate').content.firstElementChild.cloneNode(true); const isApel = lockedCodes.has(course.code); node.classList.toggle('selected', course.selected); node.classList.toggle('apel-locked', isApel);
+    // A subject ticked or recorded in another semester can't be ticked here too (unticking is always allowed).
+    const lockedBy = !course.selected && elsewhere.get(course.code);
+    const node = $('#courseTemplate').content.firstElementChild.cloneNode(true); const isApel = lockedCodes.has(course.code); node.classList.toggle('selected', course.selected); node.classList.toggle('apel-locked', isApel); node.classList.toggle('elsewhere-locked', Boolean(lockedBy));
     node.querySelector('.course-number span').textContent = index + 1; node.querySelector('.course-name strong').textContent = course.name; node.querySelector('.course-code').textContent = course.code || '—';
     node.querySelector('.course-meta').textContent = course.tbc ? 'Sunday timetable details to be confirmed' : `Sunday / ${course.session === 'both' ? 'Both sessions' : `Session ${course.session}`} / ${formatTime(course.start)}-${formatTime(course.end)}${course.room ? ` / ${course.room}` : ''}`;
-    node.querySelector('.course-credit').textContent = `${course.credits} cr`; node.querySelector('.course-part').textContent = course.part ? `Semester ${course.part}` : '—'; node.querySelector('.course-notes').textContent = course.notes || (isApel ? 'APEL. C' : course.type);
-    node.querySelector('.course-select').disabled = isApel; node.querySelector('.course-select').onclick = () => { if (!isApel) { course.selected = !course.selected; persist(); render(); } };
+    node.querySelector('.course-credit').textContent = `${course.credits} cr`; node.querySelector('.course-part').textContent = course.part ? `Semester ${course.part}` : '—'; node.querySelector('.course-notes').textContent = lockedBy || course.notes || (isApel ? 'APEL. C' : course.type);
+    node.querySelector('.course-select').disabled = isApel || Boolean(lockedBy); node.querySelector('.course-select').onclick = () => { if (!isApel && !lockedBy) { course.selected = !course.selected; persist(); render(); } };
     node.querySelector('.edit-button').onclick = () => edit(course);
     node.querySelector('.delete-button').onclick = () => {
       // A taken subject comes back from your records on the next load, so removing it here removes the record too.
@@ -204,6 +207,8 @@ $('#courseForm').onsubmit = (event) => {
   event.preventDefault(); const value = (id) => $(id).value.trim();
   const course = { id: value('#courseId') || crypto.randomUUID(), name: value('#courseName'), code: value('#courseCode'), credits: Number(value('#courseCredits')), type: value('#courseType'), session: value('#courseSession'), start: value('#courseStart'), end: value('#courseEnd'), room: value('#courseRoom'), notes: value('#courseNotes'), selected: $('#courseSelected').checked };
   if (course.end <= course.start) { alert('End time must be later than start time.'); return; }
+  const clash = course.selected && course.code && takenElsewhere(semester()).get(course.code);
+  if (clash) { alert(`${course.code} already belongs to another semester (${clash}). Untick it there first, or turn off "Include in timetable".`); return; }
   const existing = semester().courses.find((item) => item.id === course.id);
   if (existing) {
     // Keep fields the form doesn't show (part, tbc); a TBC subject stays TBC until its session or time is actually changed.
@@ -213,6 +218,13 @@ $('#courseForm').onsubmit = (event) => {
   } else semester().courses.push(course);
   persist(); $('#courseForm').reset(); $('#courseCredits').value = 3; $('#courseStart').value = '08:30'; $('#courseEnd').value = '10:30'; $('#courseSelected').checked = true; $('#courseForm .primary-button').textContent = 'Add subject'; $('#cancelEdit').classList.add('hidden'); render();
 };
+// Where each subject already belongs outside this semester: ticked in another plan, or in your records for another semester.
+function takenElsewhere(term) {
+  const where = new Map();
+  completedCourses.filter((record) => record.takenPart !== partNumber(term)).forEach((record) => where.set(record.code, typeof record.takenPart === 'number' ? `Taken in Semester ${record.takenPart}` : 'Credit exemption'));
+  state.semesters.filter((other) => other !== term).forEach((other) => other.courses.forEach((course) => { if (course.selected && course.code) where.set(course.code, `Selected in ${other.name}`); }));
+  return where;
+}
 // Progress records are the source of truth for taken subjects; keep the matching subject in that semester's plan in step.
 function takenRecord(course, term = semester()) { return completedCourses.find((record) => record.code === course.code && record.takenPart === partNumber(term)); }
 function saveProgress(original, next) {
@@ -250,12 +262,11 @@ $('#cancelEdit').onclick = () => { $('#courseForm').reset(); $('#courseId').valu
 $('#currentPart').onchange = (event) => { const part = Math.max(1, Math.min(11, Number(event.target.value) || 3)); localStorage.setItem('uitm-current-part', String(part)); persistProgress(); openCurrentSemester(); render(); };
 $('#courseStart').onchange = (event) => { const ends = { '08:30': '10:30', '10:30': '12:30', '14:30': '16:30', '16:30': '18:30' }; $('#courseEnd').value = ends[event.target.value]; };
 $('#newSemester').onclick = () => {
-  const part = askPart('Which semester number? (1-11)', Number(localStorage.getItem('uitm-current-part') || 3) + 1);
-  if (!part) return;
-  const name = `Semester ${part}`; const existing = state.semesters.findIndex((term) => partNumber(term) === part);
-  if (existing >= 0) state.active = existing;
-  else { state.semesters.push({ id: crypto.randomUUID(), name, courses: DEFAULT_COURSES.map((course) => ({ ...course, id: crypto.randomUUID() })) }); state.active = state.semesters.length - 1; persist(); }
-  render();
+  // Always the semester after the latest one planned (Semester 5 → Semester 6); the programme ends at Semester 11.
+  const latest = Math.max(0, ...state.semesters.map(partNumber)); const part = latest ? latest + 1 : Number(localStorage.getItem('uitm-current-part') || 3);
+  if (part > 11) { alert('Semester 11 is the last semester of the programme.'); return; }
+  state.semesters.push({ id: crypto.randomUUID(), name: `Semester ${part}`, courses: DEFAULT_COURSES.map((course) => ({ ...course, id: crypto.randomUUID() })) });
+  state.active = state.semesters.length - 1; persist(); render();
 };
 $('#sheetSync').onclick = openSheetPanel;
 $('#sheetPush').onclick = () => databaseSync('push');
