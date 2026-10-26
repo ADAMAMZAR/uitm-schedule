@@ -10,7 +10,12 @@ function normalizeTimeValue(value, fallback = '08:30') {
   const parsed = new Date(value); if (!Number.isNaN(parsed.getTime())) return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
   return fallback;
 }
-function normalizeCourses() { state.semesters.forEach((term) => term.courses.forEach((course) => { course.start = normalizeTimeValue(course.start); course.end = normalizeTimeValue(course.end, '10:30'); })); }
+function normalizeCourses() {
+  state.semesters.forEach((term) => term.courses.forEach((course) => { course.start = normalizeTimeValue(course.start); course.end = normalizeTimeValue(course.end, '10:30'); }));
+  // Older data named the first plan "Programme course catalogue"; it is the current part's plan.
+  const current = `Part ${localStorage.getItem('uitm-current-part') || 3}`; const legacy = state.semesters.find((term) => term.name === 'Programme course catalogue');
+  if (legacy && !state.semesters.some((term) => term.name === current)) legacy.name = current;
+}
 normalizeCourses();
 const semester = () => state.semesters[state.active];
 const touch = () => localStorage.setItem('uitm-last-updated', new Date().toISOString());
@@ -29,7 +34,7 @@ function applySnapshot(data) {
   if (!data || !Array.isArray(data.semesters) || !Array.isArray(data.apelCourses)) return false;
   state.semesters = data.semesters; state.active = Math.min(Number(data.active) || 0, state.semesters.length - 1); normalizeCourses(); apelCourses.splice(0, apelCourses.length, ...data.apelCourses);
   if (Array.isArray(data.completedCourses)) completedCourses.splice(0, completedCourses.length, ...data.completedCourses);
-  localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); return true;
+  state.semesters.forEach(addTakenSubjects); localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); return true;
 }
 function openSheetPanel() {
   $('#syncPanel').hidden = false; $('#sheetUrl').value = sheetUrl();
@@ -65,7 +70,13 @@ async function syncSheet() {
     else setSyncStatus(`Backed up to Google Sheets · ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
   } catch (error) { setSyncStatus(`Could not sync: ${error.message}`); }
 }
-let timetableUpdated = false;
+// A part's plan always holds the subjects your progress records as taken in that part. Times stay TBC until A_GROUP_TIMES has them.
+function addTakenSubjects(term) {
+  const missing = completedCourses.filter((taken) => taken.takenPart === partNumber(term) && !term.courses.some((course) => course.code === taken.code));
+  missing.forEach((taken) => term.courses.push({ id: crypto.randomUUID(), code: taken.code, name: taken.name, credits: taken.credits, part: taken.takenPart, type: 'Core', session: '1', start: '08:30', end: '10:30', room: '', selected: true, tbc: true }));
+  return missing.length;
+}
+let timetableUpdated = state.semesters.map(addTakenSubjects).some(Boolean);
 state.semesters.forEach((term) => term.courses.forEach((course) => {
   const slot = A_GROUP_TIMES[course.code];
   if (slot && course.tbc) { Object.assign(course, slot); timetableUpdated = true; }
@@ -81,7 +92,7 @@ const sameWeek = (a, b) => a.session === 'both' || b.session === 'both' || a.ses
 
 function credits(term = semester()) { return term.courses.filter((course) => course.selected).reduce((total, course) => total + Number(course.credits), 0); }
 function warnings() {
-  const selected = semester().courses.filter((course) => course.selected);
+  const selected = semester().courses.filter((course) => course.selected && !course.tbc);
   const result = [];
   for (let i = 0; i < selected.length; i += 1) for (let j = i + 1; j < selected.length; j += 1) {
     if (sameWeek(selected[i], selected[j]) && overlap(selected[i], selected[j])) result.push(`${selected[i].name} clashes with ${selected[j].name}.`);
@@ -134,7 +145,8 @@ function render() {
   // One <details> per semester; name= makes it an accordion, and the open one is the active semester.
   $('#semesterPlans').innerHTML = state.semesters.map((term, index) => ({ term, index })).sort((a, b) => partNumber(a.term) - partNumber(b.term)).map(({ term, index }) => {
     const selected = term.courses.filter((course) => course.selected).sort((a, b) => a.start.localeCompare(b.start));
-    return `<details class="semester-plan" name="semester-plans" data-index="${index}" ${index === state.active ? 'open' : ''}><summary><strong>${esc(term.name)}</strong><span>${credits(term)} / 16 cr · ${selected.length} class${selected.length === 1 ? '' : 'es'}</span></summary><div class="plan-body">${selected.length ? timetable(selected) : '<div class="empty-state">No selected classes in this semester yet.<br />Add a subject and choose its session and timetable slot.</div>'}<div class="plan-actions"><button class="text-button change-part" type="button" data-index="${index}">Change part number</button></div></div></details>`;
+    const placed = selected.filter((course) => !course.tbc); const pending = selected.filter((course) => course.tbc);
+    return `<details class="semester-plan" name="semester-plans" data-index="${index}" ${index === state.active ? 'open' : ''}><summary><strong>${esc(term.name)}${partNumber(term) === currentPart ? ' <em class="active-pill">Active</em>' : ''}</strong><span>${credits(term)} / 16 cr · ${selected.length} class${selected.length === 1 ? '' : 'es'}</span></summary><div class="plan-body">${placed.length ? timetable(placed) : pending.length ? '' : '<div class="empty-state">No selected classes in this semester yet.<br />Add a subject and choose its session and timetable slot.</div>'}${pending.length ? `<p class="plan-tbc"><b>Time TBC</b>${pending.map((course) => esc(course.code || course.name)).join(' · ')}</p>` : ''}<div class="plan-actions"><button class="text-button change-part" type="button" data-index="${index}">Change part number</button></div></div></details>`;
   }).join('');
   document.querySelectorAll('.semester-plan').forEach((plan) => plan.ontoggle = () => {
     const index = Number(plan.dataset.index);

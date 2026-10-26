@@ -15,7 +15,13 @@ const A_GROUP_TIMES = {
   CSC649: { session: '2', start: '14:30', end: '16:30', room: 'BK03', tbc: false },
   CSP600: { session: '2', start: '10:30', end: '12:30', room: 'BK03', tbc: false },
   CSP650: { session: '1', start: '10:30', end: '12:30', room: 'BK10', tbc: false },
-  ENT600: { session: '2', start: '16:30', end: '18:30', room: 'TH03', tbc: false }
+  ENT600: { session: '2', start: '16:30', end: '18:30', room: 'TH03', tbc: false },
+  // Part 3 subjects (taken this semester)
+  MAT423: { session: '2', start: '08:30', end: '10:30', room: 'TH04', tbc: false },
+  CSC510: { session: '1', start: '16:30', end: '18:30', room: 'BK36', tbc: false },
+  TMC401: { session: '1', start: '14:30', end: '16:30', room: 'BK21', tbc: false },
+  ISP565: { session: '2', start: '10:30', end: '12:30', room: 'BK26', tbc: false },
+  CSC645: { session: '2', start: '14:30', end: '16:30', room: 'MK20', tbc: false }
 };
 
 const DEFAULT_COURSES = [
