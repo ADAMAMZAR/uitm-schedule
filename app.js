@@ -38,7 +38,7 @@ function applySnapshot(data) {
   if (!data || !Array.isArray(data.semesters) || !Array.isArray(data.apelCourses)) return false;
   state.semesters = data.semesters; state.active = Math.min(Number(data.active) || 0, state.semesters.length - 1); normalizeCourses(); apelCourses.splice(0, apelCourses.length, ...data.apelCourses);
   if (Array.isArray(data.completedCourses)) completedCourses.splice(0, completedCourses.length, ...data.completedCourses);
-  state.semesters.forEach(syncTakenSubjects); localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); openCurrentSemester(); return true;
+  renameSubjects(); state.semesters.forEach(syncTakenSubjects); localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); openCurrentSemester(); return true;
 }
 function openSheetPanel() {
   $('#syncPanel').hidden = false; $('#sheetUrl').value = sheetUrl();
@@ -85,7 +85,15 @@ function syncTakenSubjects(term) {
   missing.forEach((taken) => term.courses.push({ id: crypto.randomUUID(), code: taken.code, name: taken.name, credits: taken.credits, part: taken.takenPart, type: 'Core', session: '1', start: '08:30', end: '10:30', room: '', selected: true, tbc: true }));
   return removed + missing.length;
 }
-let timetableUpdated = state.semesters.map(syncTakenSubjects).some(Boolean);
+// The catalogue first listed these as German (TGC); they are Mandarin (TMC). Saved plans, APel C and Sheet backups may still carry the old codes.
+const RENAMED_SUBJECTS = { TGC451: { code: 'TMC451', name: 'INTRODUCTORY MANDARIN (LEVEL II)' }, TGC501: { code: 'TMC501', name: 'INTRODUCTORY MANDARIN (LEVEL III)' } };
+function renameSubjects() {
+  const renamed = [...state.semesters.flatMap((term) => term.courses), ...apelCourses].filter((course) => RENAMED_SUBJECTS[course.code]);
+  renamed.forEach((course) => { const to = RENAMED_SUBJECTS[course.code]; course.id = String(course.id).replace(course.code, to.code); Object.assign(course, to); });
+  return renamed.length;
+}
+const subjectsRenamed = renameSubjects(); if (subjectsRenamed) persistApel();
+let timetableUpdated = [subjectsRenamed, ...state.semesters.map(syncTakenSubjects)].some(Boolean);
 state.semesters.forEach((term) => term.courses.forEach((course) => {
   const slot = A_GROUP_TIMES[course.code];
   if (slot && course.tbc) { Object.assign(course, slot); timetableUpdated = true; }

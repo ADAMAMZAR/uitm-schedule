@@ -16,7 +16,9 @@ const A_GROUP_TIMES = {
   CSP600: { session: '2', start: '10:30', end: '12:30', room: 'BK03', tbc: false },
   CSP650: { session: '1', start: '10:30', end: '12:30', room: 'BK10', tbc: false },
   ENT600: { session: '2', start: '16:30', end: '18:30', room: 'TH03', tbc: false },
-  // Part 3 subjects (taken this semester)
+  TMC451: { session: '2', start: '16:30', end: '18:30', room: '', tbc: false },
+  TMC501: { session: '1', start: '16:30', end: '18:30', room: '', tbc: false },
+  // Semester 3 subjects (taken this semester)
   MAT423: { session: '2', start: '08:30', end: '10:30', room: 'TH04', tbc: false },
   CSC510: { session: '1', start: '16:30', end: '18:30', room: 'BK36', tbc: false },
   TMC401: { session: '1', start: '14:30', end: '16:30', room: 'BK21', tbc: false },
@@ -34,5 +36,5 @@ const DEFAULT_COURSES = [
   ['CSP600','PROJECT FORMULATION',3,9,false], ['CSP650','PROJECT',6,10,false], ['CST688','COMPUTING SCIENCE INDUSTRIAL TRAINING',7,11,false],
   ['ENT600','TECHNOLOGY ENTREPRENEURSHIP',3,9,false], ['ICT502','DATABASE ENGINEERING',3,6,false], ['ICT652','ETHICAL, SOCIAL, AND PROFESSIONAL ISSUES IN ICT',3,9,false],
   ['LCC401','ENGLISH FOR MEDIATING TEXTS',2,1,false], ['LCC500','ENGLISH FOR WORKPLACE COMMUNICATION',2,6,false],
-  ['STA416','APPLIED PROBABILITY AND STATISTICS',3,4,false], ['TGC451','INTRODUCTORY GERMAN (LEVEL II)',2,7,true], ['TGC501','INTRODUCTORY GERMAN (LEVEL III)',2,8,true]
+  ['STA416','APPLIED PROBABILITY AND STATISTICS',3,4,false], ['TMC451','INTRODUCTORY MANDARIN (LEVEL II)',2,7,true], ['TMC501','INTRODUCTORY MANDARIN (LEVEL III)',2,8,true]
 ].map(([code,name,credits,part,elective]) => ({ id: `catalogue-${code}`, code, name, credits, part, type: elective ? 'Elective' : 'Core', session: '1', start: '08:00', end: '10:00', room: '', selected: false, tbc: true, ...(A_GROUP_TIMES[code] || {}) }));
