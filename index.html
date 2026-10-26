@@ -16,7 +16,10 @@
   <link rel="preload" as="style"
     href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap"
     onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" /></noscript>
+  <noscript>
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" />
+  </noscript>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="apel.css" />
   <link rel="stylesheet" href="dates.css" />
@@ -94,38 +97,33 @@
       <div class="card-heading">
         <div>
           <p class="eyebrow">Credit exemption plan</p>
-          <h2>APel C subjects <span class="info-tip" tabindex="0"
-              data-tip="APel C is kept separate from normal classes. A course added here is locked from normal timetable selection.">i</span>
+          <h2>APEL. C subjects <span class="info-tip" tabindex="0"
+              data-tip="APEL. C is kept separate from normal classes. A course added here is locked from normal timetable selection.">i</span>
           </h2>
         </div><strong id="apelTotal">RM0</strong>
       </div>
       <div class="apel-summary"><span><b>RM100</b> registration <span class="info-tip" tabindex="0"
-            data-tip="The registration fee is charged for every APel C subject you add.">i</span></span><span><b>RM200</b>
+            data-tip="The registration fee is charged for every APEL. C subject you add.">i</span></span><span><b>RM200</b>
           success fee <span class="info-tip" tabindex="0"
-            data-tip="This fee is added only after you mark that APel C subject as successful. Total per successful subject: RM300.">i</span></span>
+            data-tip="This fee is added only after you mark that APEL. C subject as successful. Total per successful subject: RM300.">i</span></span>
       </div>
       <form id="apelForm" class="two-col">
         <label>Subject<select id="apelCourse" required></select></label>
         <label>Planned part<input id="apelPart" type="number" min="1" max="11" required placeholder="e.g. 5" /></label>
-        <button class="primary-button" type="submit">Add to APel C</button>
+        <button class="primary-button" type="submit">Add to APEL. C</button>
       </form>
       <div id="apelList" class="apel-list"></div>
-      <div id="apelEmpty" class="empty-state">No APel C subjects planned yet.</div>
+      <div id="apelEmpty" class="empty-state">No APEL. C subjects planned yet.</div>
     </section>
 
-    <section class="semester-bar semester-plan-bar" aria-label="Semester controls">
-      <div class="semester-field">
-        <label for="semesterName">Active semester</label>
-        <input id="semesterName" value="Current semester" maxlength="40" />
-        <select id="semesterPicker" aria-label="Switch semester"></select>
-      </div>
+    <section class="planning-head" aria-label="Semester controls">
+      <h2>Semester planning</h2>
       <div class="credit-meter">
-        <div class="credit-label"><span>Selected credits</span><strong id="creditValue">0 / 16</strong></div>
+        <div class="credit-label"><span id="creditLabel">Selected credits</span><strong id="creditValue">0 / 16</strong>
+        </div>
         <div class="meter"><i id="creditFill"></i></div>
       </div>
-      <div class="semester-actions">
-        <button class="outline-button" id="newSemester">+ New semester</button>
-      </div>
+      <button class="outline-button" id="newSemester" type="button">+ New semester</button>
     </section>
 
     <section id="alerts" class="alerts" aria-live="polite"></section>
@@ -134,7 +132,7 @@
       <article class="card form-card">
         <div class="card-heading">
           <div>
-            <p class="eyebrow">Course editor</p>
+            <p class="eyebrow" id="editorTarget">Course editor</p>
             <h2>Add a subject</h2>
           </div>
           <button class="text-button hidden" id="cancelEdit">Cancel edit</button>
@@ -184,15 +182,11 @@
       <article class="card schedule-card">
         <div class="card-heading">
           <div>
-            <p class="eyebrow">Sunday · selected semester</p>
-            <h2 id="scheduleTitle">Semester timetable</h2>
-          </div><span class="session-key" id="sessionKey">S1 + S2</span>
+            <p class="eyebrow">Sunday timetables</p>
+            <h2>Semester plans</h2>
+          </div><span class="session-key">S1 + S2</span>
         </div>
-        <div class="timetable-scroll">
-          <div id="timeline" class="timetable" aria-label="Sunday semester timetable"></div>
-        </div>
-        <div class="empty-state" id="timelineEmpty">No selected classes in this semester yet.<br />Add a subject and
-          choose its session and timetable slot.</div>
+        <div id="semesterPlans" class="semester-plans"></div>
       </article>
     </section>
 
@@ -200,7 +194,7 @@
       <div class="card-heading">
         <div>
           <p class="eyebrow">Course basket</p>
-          <h2>All subjects</h2>
+          <h2 id="basketTitle">All subjects</h2>
         </div><span id="courseCount" class="course-count">0 subjects</span>
       </div>
       <div class="course-table-wrap">

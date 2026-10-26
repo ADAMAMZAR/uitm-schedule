@@ -1,4 +1,4 @@
-const CACHE = 'uitm-sunday-studio-v14';
+const CACHE = 'uitm-sunday-studio-v15';
 const ASSETS = ['./', './index.html', './styles.css', './apel.css', './apel-actions.css', './dates.css', './catalogue.js', './calendar.js', './progress.js', './app.js', './manifest.webmanifest'];
 
 // skipWaiting: a new version takes over on the next reload. cache: 'reload' skips the browser's HTTP cache so a deploy never caches stale files.
