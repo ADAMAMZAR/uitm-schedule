@@ -38,7 +38,7 @@
 
     <section class="semester-bar overview-bar" aria-label="Planner controls">
       <div class="part-field">
-        <label for="currentPart">Current part</label>
+        <label for="currentPart">Current semester</label>
         <input id="currentPart" type="number" min="1" max="11" value="3" inputmode="numeric" />
         <small>Change this when you begin a new semester.</small>
       </div>
@@ -79,11 +79,11 @@
       </div>
       <div class="progress-grid">
         <section class="progress-column">
-          <header><span>Previous parts</span><strong id="previousCount">0</strong></header>
+          <header><span>Previous semesters</span><strong id="previousCount">0</strong></header>
           <div id="previousCourses" class="progress-list"></div>
         </section>
         <section class="progress-column current">
-          <header><span id="currentPartTitle">Part 3</span><strong id="currentCount">0</strong></header>
+          <header><span id="currentPartTitle">Semester 3</span><strong id="currentCount">0</strong></header>
           <div id="currentCourses" class="progress-list"></div>
         </section>
         <section class="progress-column exemption">
@@ -205,7 +205,7 @@
               <th>Subject name</th>
               <th>Code</th>
               <th>Credit</th>
-              <th>Part</th>
+              <th>Semester</th>
               <th>Notes</th>
               <th><span class="sr-only">Actions</span></th>
             </tr>
@@ -239,7 +239,10 @@
   <script src="calendar.js"></script>
   <script src="progress.js"></script>
   <script src="app.js"></script>
-  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');</script>
+  <script>
+    // After a deploy the old cached code runs once; reload as soon as the new version takes over so updates show immediately.
+    if ('serviceWorker' in navigator) { if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener('controllerchange', () => location.reload()); navigator.serviceWorker.register('./service-worker.js'); }
+  </script>
 </body>
 
 </html>

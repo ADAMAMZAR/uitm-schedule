@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const saved = JSON.parse(localStorage.getItem('uitm-semesters') || 'null');
 const loadCatalogue = !saved || (saved.length === 1 && saved[0].courses.length === 0);
-const state = { view: '1', semesters: loadCatalogue ? [{ id: crypto.randomUUID(), name: `Part ${localStorage.getItem('uitm-current-part') || 3}`, courses: DEFAULT_COURSES }] : saved, active: 0 };
+const state = { view: '1', semesters: loadCatalogue ? [{ id: crypto.randomUUID(), name: `Semester ${localStorage.getItem('uitm-current-part') || 3}`, courses: DEFAULT_COURSES }] : saved, active: 0 };
 const apelCourses = JSON.parse(localStorage.getItem('uitm-apel-courses') || '[]');
 const completedCourses = JSON.parse(localStorage.getItem('uitm-completed-courses') || 'null') || COMPLETED_COURSES;
 function normalizeTimeValue(value, fallback = '08:30') {
@@ -12,18 +12,22 @@ function normalizeTimeValue(value, fallback = '08:30') {
 }
 function normalizeCourses() {
   state.semesters.forEach((term) => term.courses.forEach((course) => { course.start = normalizeTimeValue(course.start); course.end = normalizeTimeValue(course.end, '10:30'); }));
-  // Older data named the first plan "Programme course catalogue"; it is the current part's plan.
-  const current = `Part ${localStorage.getItem('uitm-current-part') || 3}`; const legacy = state.semesters.find((term) => term.name === 'Programme course catalogue');
-  if (legacy && !state.semesters.some((term) => term.name === current)) legacy.name = current;
+  // Older data named the first plan "Programme course catalogue"; it is the current semester's plan.
+  const current = Number(localStorage.getItem('uitm-current-part') || 3); const legacy = state.semesters.find((term) => term.name === 'Programme course catalogue');
+  if (legacy && !state.semesters.some((term) => partNumber(term) === current)) legacy.name = String(current);
+  // Part and semester mean the same thing; plans are always shown as "Semester N", whatever an older version or the Sheet called them.
+  state.semesters.forEach((term) => { if (partNumber(term)) term.name = `Semester ${partNumber(term)}`; });
 }
-normalizeCourses();
+function partNumber(term) { return Number((String(term.name).match(/\d+/) || [0])[0]); }
+// Open the current semester's plan, so the active semester follows the Current semester setting.
+function openCurrentSemester() { const index = state.semesters.findIndex((term) => partNumber(term) === Number(localStorage.getItem('uitm-current-part') || 3)); if (index >= 0) state.active = index; }
+normalizeCourses(); openCurrentSemester();
 const semester = () => state.semesters[state.active];
 const touch = () => localStorage.setItem('uitm-last-updated', new Date().toISOString());
 const persist = () => { localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); touch(); };
 const persistApel = () => { localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); touch(); };
 const persistProgress = () => { localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); touch(); };
 const apelCodes = () => new Set(apelCourses.map((course) => course.code));
-const partNumber = (term) => Number((term.name.match(/\d+/) || [0])[0]);
 const askPart = (message, suggestion) => { const part = Number(prompt(message, suggestion)); return Number.isInteger(part) && part >= 1 && part <= 11 ? part : null; };
 const sheetUrl = () => localStorage.getItem('uitm-sheet-url') || '';
 // One private deployment URL represents one planner. Keeping this key stable lets a phone and laptop restore the same backup.
@@ -34,7 +38,7 @@ function applySnapshot(data) {
   if (!data || !Array.isArray(data.semesters) || !Array.isArray(data.apelCourses)) return false;
   state.semesters = data.semesters; state.active = Math.min(Number(data.active) || 0, state.semesters.length - 1); normalizeCourses(); apelCourses.splice(0, apelCourses.length, ...data.apelCourses);
   if (Array.isArray(data.completedCourses)) completedCourses.splice(0, completedCourses.length, ...data.completedCourses);
-  state.semesters.forEach(syncTakenSubjects); localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); return true;
+  state.semesters.forEach(syncTakenSubjects); localStorage.setItem('uitm-semesters', JSON.stringify(state.semesters)); localStorage.setItem('uitm-apel-courses', JSON.stringify(apelCourses)); localStorage.setItem('uitm-completed-courses', JSON.stringify(completedCourses)); localStorage.setItem('uitm-current-part', String(Number(data.currentPart) || 3)); localStorage.setItem('uitm-last-updated', data.updatedAt || new Date().toISOString()); openCurrentSemester(); return true;
 }
 function openSheetPanel() {
   $('#syncPanel').hidden = false; $('#sheetUrl').value = sheetUrl();
@@ -125,8 +129,8 @@ function render() {
   const currentCourses = completedCourses.filter((course) => course.takenPart === currentPart);
   const exemptionCourses = completedCourses.filter((course) => course.takenPart === 'credit exemption');
   const progressRows = (courses, label) => courses.length ? courses.map((course) => `<article class="progress-row"><div><strong>${esc(course.code)}</strong><p>${esc(course.name)}</p></div><span>${course.credits} cr</span></article>`).join('') : `<p class="progress-empty">No subjects in ${label} yet.</p>`;
-  $('#currentPart').value = currentPart; $('#currentPartTitle').textContent = `Part ${currentPart}`;
-  $('#previousCourses').innerHTML = progressRows(previousCourses, 'previous parts'); $('#currentCourses').innerHTML = progressRows(currentCourses, `Part ${currentPart}`); $('#exemptionCourses').innerHTML = progressRows(exemptionCourses, 'credit exemption');
+  $('#currentPart').value = currentPart; $('#currentPartTitle').textContent = `Semester ${currentPart}`;
+  $('#previousCourses').innerHTML = progressRows(previousCourses, 'previous semesters'); $('#currentCourses').innerHTML = progressRows(currentCourses, `Semester ${currentPart}`); $('#exemptionCourses').innerHTML = progressRows(exemptionCourses, 'credit exemption');
   $('#previousCount').textContent = previousCourses.length; $('#currentCount').textContent = currentCourses.length; $('#exemptionCount').textContent = exemptionCourses.length;
   $('#completedCredits').textContent = `${completedCourses.reduce((sum, course) => sum + Number(course.credits), 0)} credits`;
   const timetableSlots = [
@@ -151,16 +155,17 @@ function render() {
   $('#semesterPlans').innerHTML = state.semesters.map((term, index) => ({ term, index })).sort((a, b) => partNumber(a.term) - partNumber(b.term)).map(({ term, index }) => {
     const selected = term.courses.filter((course) => course.selected).sort((a, b) => a.start.localeCompare(b.start));
     const placed = selected.filter((course) => !course.tbc); const pending = selected.filter((course) => course.tbc);
-    return `<details class="semester-plan" name="semester-plans" data-index="${index}" ${index === state.active ? 'open' : ''}><summary><strong>${esc(term.name)}${partNumber(term) === currentPart ? ' <em class="active-pill">Active</em>' : ''}</strong><span>${credits(term)} / 16 cr · ${selected.length} class${selected.length === 1 ? '' : 'es'}</span></summary><div class="plan-body">${placed.length ? timetable(placed) : pending.length ? '' : '<div class="empty-state">No selected classes in this semester yet.<br />Add a subject and choose its session and timetable slot.</div>'}${pending.length ? `<p class="plan-tbc"><b>Time TBC</b>${pending.map((course) => esc(course.code || course.name)).join(' · ')}</p>` : ''}<div class="plan-actions"><button class="text-button change-part" type="button" data-index="${index}">Change part number</button></div></div></details>`;
+    return `<details class="semester-plan" name="semester-plans" data-index="${index}" ${index === state.active ? 'open' : ''}><summary><strong>${esc(term.name)}${partNumber(term) === currentPart ? ' <em class="active-pill">Active</em>' : ''}</strong><span>${credits(term)} / 16 cr · ${selected.length} class${selected.length === 1 ? '' : 'es'}</span></summary><div class="plan-body">${placed.length ? timetable(placed) : pending.length ? '' : '<div class="empty-state">No selected classes in this semester yet.<br />Add a subject and choose its session and timetable slot.</div>'}${pending.length ? `<p class="plan-tbc"><b>Time TBC</b>${pending.map((course) => esc(course.code || course.name)).join(' · ')}</p>` : ''}<div class="plan-actions"><button class="text-button change-part" type="button" data-index="${index}">Change semester number</button></div></div></details>`;
   }).join('');
   document.querySelectorAll('.semester-plan').forEach((plan) => plan.ontoggle = () => {
+    // Toggle events arrive after the fact; one from a panel a later render already replaced must not flip the active semester back.
     const index = Number(plan.dataset.index);
-    if (plan.open && index !== state.active) { state.active = index; render(); $(`.semester-plan[data-index="${index}"] summary`).focus({ preventScroll: true }); }
+    if (plan.open && plan.isConnected && index !== state.active) { state.active = index; render(); $(`.semester-plan[data-index="${index}"] summary`).focus({ preventScroll: true }); }
   });
   document.querySelectorAll('.change-part').forEach((button) => button.onclick = () => {
-    const index = Number(button.dataset.index); const part = askPart('Change this semester to which part? (1-11)', partNumber(state.semesters[index]) || '');
-    if (!part) return; const name = `Part ${part}`;
-    if (state.semesters.some((term, i) => i !== index && term.name === name)) { alert(`${name} already has a plan.`); return; }
+    const index = Number(button.dataset.index); const part = askPart('Change to which semester number? (1-11)', partNumber(state.semesters[index]) || '');
+    if (!part) return; const name = `Semester ${part}`;
+    if (state.semesters.some((term, i) => i !== index && partNumber(term) === part)) { alert(`${name} already has a plan.`); return; }
     state.semesters[index].name = name; persist(); render();
   });
   const list = $('#courseList'); list.innerHTML = '';
@@ -168,7 +173,7 @@ function render() {
     const node = $('#courseTemplate').content.firstElementChild.cloneNode(true); const isApel = lockedCodes.has(course.code); node.classList.toggle('selected', course.selected); node.classList.toggle('apel-locked', isApel);
     node.querySelector('.course-number span').textContent = index + 1; node.querySelector('.course-name strong').textContent = course.name; node.querySelector('.course-code').textContent = course.code || '—';
     node.querySelector('.course-meta').textContent = course.tbc ? 'Sunday timetable details to be confirmed' : `Sunday / ${course.session === 'both' ? 'Both sessions' : `Session ${course.session}`} / ${formatTime(course.start)}-${formatTime(course.end)}${course.room ? ` / ${course.room}` : ''}`;
-    node.querySelector('.course-credit').textContent = `${course.credits} cr`; node.querySelector('.course-part').textContent = course.part ? `Part ${course.part}` : '—'; node.querySelector('.course-notes').textContent = course.notes || (isApel ? 'APEL. C' : course.type);
+    node.querySelector('.course-credit').textContent = `${course.credits} cr`; node.querySelector('.course-part').textContent = course.part ? `Semester ${course.part}` : '—'; node.querySelector('.course-notes').textContent = course.notes || (isApel ? 'APEL. C' : course.type);
     node.querySelector('.course-select').disabled = isApel; node.querySelector('.course-select').onclick = () => { if (!isApel) { course.selected = !course.selected; persist(); render(); } };
     node.querySelector('.edit-button').onclick = () => edit(course);
     node.querySelector('.delete-button').onclick = () => { active.courses = active.courses.filter((item) => item.id !== course.id); persist(); render(); };
@@ -193,12 +198,12 @@ $('#apelForm').onsubmit = (event) => {
   state.semesters.forEach((term) => term.courses.forEach((course) => { if (course.code === code) course.selected = false; })); persist(); persistApel(); event.target.reset(); render();
 };
 $('#cancelEdit').onclick = () => { $('#courseForm').reset(); $('#courseId').value = ''; $('#courseCredits').value = 3; $('#courseStart').value = '08:30'; $('#courseEnd').value = '10:30'; $('#courseSelected').checked = true; $('#courseForm .primary-button').textContent = 'Add subject'; $('#cancelEdit').classList.add('hidden'); };
-$('#currentPart').onchange = (event) => { const part = Math.max(1, Math.min(11, Number(event.target.value) || 3)); localStorage.setItem('uitm-current-part', String(part)); persistProgress(); render(); };
+$('#currentPart').onchange = (event) => { const part = Math.max(1, Math.min(11, Number(event.target.value) || 3)); localStorage.setItem('uitm-current-part', String(part)); persistProgress(); openCurrentSemester(); render(); };
 $('#courseStart').onchange = (event) => { const ends = { '08:30': '10:30', '10:30': '12:30', '14:30': '16:30', '16:30': '18:30' }; $('#courseEnd').value = ends[event.target.value]; };
 $('#newSemester').onclick = () => {
-  const part = askPart('Which part is this semester? (1-11)', Number(localStorage.getItem('uitm-current-part') || 3) + 1);
+  const part = askPart('Which semester number? (1-11)', Number(localStorage.getItem('uitm-current-part') || 3) + 1);
   if (!part) return;
-  const name = `Part ${part}`; const existing = state.semesters.findIndex((term) => term.name === name);
+  const name = `Semester ${part}`; const existing = state.semesters.findIndex((term) => partNumber(term) === part);
   if (existing >= 0) state.active = existing;
   else { state.semesters.push({ id: crypto.randomUUID(), name, courses: DEFAULT_COURSES.map((course) => ({ ...course, id: crypto.randomUUID() })) }); state.active = state.semesters.length - 1; persist(); }
   render();
